@@ -1,6 +1,10 @@
 #!/usr/bin/env python
 
-""" Code to ingest information about image and patch overlap in to CCD_OVERLAP_PATCH table """
+"""Ingest information to a table.
+
+Ingests information about image and patch overlap in to CCD_OVERLAP_PATCH
+table.
+"""
 
 import sys
 import re
@@ -24,7 +28,8 @@ overlap_table = 'CCD_OVERLAP_PATCH'
 
 
 def parse_args(argv):
-    """ Parse command line arguments """
+    """Parse command line arguments.
+    """
     parser = argparse.ArgumentParser(
         description='Ingest overlap information from an sqlite3 file into an oracle table')
     parser.add_argument('--des_services', action='store')

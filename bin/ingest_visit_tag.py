@@ -1,8 +1,10 @@
 #!/usr/bin/env python
 
-"""  Reads a text file containing visit ccd pairs and inserts them into 
-     the visit_tag table """
+"""Ingest visit ccd pairs into the table.
 
+Reads a text file containing visit ccd pairs and ingests them into the
+VISIT_TAG table.
+"""
 
 # TODO:  Check if tag exists in ops_valid_visit_tag (or catch exeception). If not give
 #        nicer error message than the: cx_Oracle.IntegrityError: ORA-02291: integrity
