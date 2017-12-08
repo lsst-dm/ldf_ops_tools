@@ -47,12 +47,12 @@ curs.prepare(sql)
 cnt = 0
 
 # loop through file inserting rows into visit_tag table
-print "Reading visit + ccd values from %s" % args.filename
+print("Reading visit + ccd values from %s" % args.filename)
 with open(args.filename[0], 'r') as infh:
     for line in infh:
         (visit, ccd) = miscutils.fwsplit(line, ' ')
         curs.execute(None, {'camsym': args.camsym, 'visit': visit, 'ccd': ccd, 'tag': args.tag})
         cnt += 1
 
-print "Ingested %d rows into visit_tag for tag=%s" % (cnt, args.tag)
+print("Ingested %d rows into visit_tag for tag=%s" % (cnt, args.tag))
 dbh.commit()

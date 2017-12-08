@@ -41,7 +41,7 @@ def parse_args(argv):
 
 def insert_row_oracle(ocurs, ovals):
     #print ovals
-    okeys = ovals.keys()
+    okeys = list(ovals.keys())
     sql = 'insert into %s (tract, patch, visit, ccd, version, skymap_filename) values (:tract, :patch, :visit, :ccd, :version, :skymap)' % (
         overlap_table)
     ocurs.execute(sql, ovals)
@@ -54,7 +54,7 @@ def process_sqlite3(scurs, version, fnskymap, ocurs):
     desc = [d[0].lower() for d in scurs.description]
 
     for line in scurs:
-        svals = dict(zip(desc, line))
+        svals = dict(list(zip(desc, line)))
         if svals['exist'] != 0:
             #print svals
             newpatch = re.sub(oldpatchsep, newpatchsep, svals['patch'])
@@ -66,21 +66,21 @@ def process_sqlite3(scurs, version, fnskymap, ocurs):
                      'skymap': fnskymap}
             insert_row_oracle(ocurs, ovals)
         else:
-            print "Skipping %s %s %s %s" % (svals['tract'], svals['patch'], svals['visit'], svals['ccd'])
+            print("Skipping %s %s %s %s" % (svals['tract'], svals['patch'], svals['visit'], svals['ccd']))
 
 
 def check_sqlite3(scurs):
     sql = "select count(*) from calexp where exist = 1"
     scurs.execute(sql)
     cnt = scurs.fetchone()[0]
-    print "%s rows in calexp table with exist = 1" % (cnt)
+    print("%s rows in calexp table with exist = 1" % (cnt))
 
 
 def check_oracle(ocurs, version):
     sql = "select count(*) from %s where version = '%s'" % (overlap_table, version)
     ocurs.execute(sql)
     cnt = ocurs.fetchone()[0]
-    print "%s rows in overlap table with version = %s" % (cnt, version)
+    print("%s rows in overlap table with version = %s" % (cnt, version))
 
 
 def process_csv(fncsv, delim, version, fnskymap, ocurs):
@@ -89,7 +89,7 @@ def process_csv(fncsv, delim, version, fnskymap, ocurs):
         # first line has headers
         line = infh.readline()
         headers = miscutils.fwsplit(line, delim)
-        print headers
+        print(headers)
 
         # read data
         line = infh.readline()
@@ -98,7 +98,7 @@ def process_csv(fncsv, delim, version, fnskymap, ocurs):
             line = line.strip()
 
             data = miscutils.fwsplit(line, delim)
-            svals = dict(zip(headers, data))
+            svals = dict(list(zip(headers, data)))
             newpatch = re.sub(oldpatchsep, newpatchsep, svals['patch'])
             ovals = {'tract': svals['tract'],
                      'patch': newpatch,
@@ -109,7 +109,7 @@ def process_csv(fncsv, delim, version, fnskymap, ocurs):
             datacnt += 1
             insert_row_oracle(ocurs, ovals)
             line = infh.readline()
-    print datacnt, "lines from csv"
+    print(datacnt, "lines from csv")
 
 
 def main(argv):
