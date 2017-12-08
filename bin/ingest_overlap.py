@@ -25,7 +25,8 @@ overlap_table = 'CCD_OVERLAP_PATCH'
 
 def parse_args(argv):
     """ Parse command line arguments """
-    parser = argparse.ArgumentParser(description='Ingest overlap information from an sqlite3 file into an oracle table')
+    parser = argparse.ArgumentParser(
+        description='Ingest overlap information from an sqlite3 file into an oracle table')
     parser.add_argument('--des_services', action='store')
     parser.add_argument('--des_db_section', '--section', '-s', action='store', dest='section')
     parser.add_argument('--version', required=True, action='store')
@@ -38,11 +39,11 @@ def parse_args(argv):
     return argsd
 
 
-
 def insert_row_oracle(ocurs, ovals):
     #print ovals
     okeys = ovals.keys()
-    sql = 'insert into %s (tract, patch, visit, ccd, version, skymap_filename) values (:tract, :patch, :visit, :ccd, :version, :skymap)' % (overlap_table)
+    sql = 'insert into %s (tract, patch, visit, ccd, version, skymap_filename) values (:tract, :patch, :visit, :ccd, :version, :skymap)' % (
+        overlap_table)
     ocurs.execute(sql, ovals)
 
 
@@ -62,28 +63,28 @@ def process_sqlite3(scurs, version, fnskymap, ocurs):
                      'visit': svals['visit'],
                      'ccd': svals['ccd'],
                      'version': version,
-                     'skymap': fnskymap} 
+                     'skymap': fnskymap}
             insert_row_oracle(ocurs, ovals)
         else:
             print "Skipping %s %s %s %s" % (svals['tract'], svals['patch'], svals['visit'], svals['ccd'])
+
 
 def check_sqlite3(scurs):
     sql = "select count(*) from calexp where exist = 1"
     scurs.execute(sql)
     cnt = scurs.fetchone()[0]
     print "%s rows in calexp table with exist = 1" % (cnt)
-    
-    
+
 
 def check_oracle(ocurs, version):
     sql = "select count(*) from %s where version = '%s'" % (overlap_table, version)
     ocurs.execute(sql)
     cnt = ocurs.fetchone()[0]
     print "%s rows in overlap table with version = %s" % (cnt, version)
-    
-    
+
+
 def process_csv(fncsv, delim, version, fnskymap, ocurs):
-    datacnt = 0 
+    datacnt = 0
     with open(fncsv) as infh:
         # first line has headers
         line = infh.readline()
@@ -104,11 +105,12 @@ def process_csv(fncsv, delim, version, fnskymap, ocurs):
                      'visit': svals['visit'],
                      'ccd': svals['ccd'],
                      'version': version,
-                     'skymap': fnskymap} 
+                     'skymap': fnskymap}
             datacnt += 1
             insert_row_oracle(ocurs, ovals)
             line = infh.readline()
     print datacnt, "lines from csv"
+
 
 def main(argv):
     argsd = parse_args(argv)
