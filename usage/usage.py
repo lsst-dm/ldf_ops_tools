@@ -13,6 +13,11 @@ from subprocess import PIPE, Popen
 
 def create_parser():
     """Create command line parser.
+    
+    Returns
+    -------
+    p : 'argparse.ArgumentParser' object
+        Specifies command line options and stores command line data.
     """
     p = argparse.ArgumentParser()
     g = p.add_mutually_exclusive_group()
