@@ -91,11 +91,11 @@ def make_plot(title, data_file, name):
     n = np.asarray(n)       
 
     plt.figure(figsize=(8, 8))
-    plt.plot(t, n)
+    plt.plot(t, n, 'b', drawstyle="steps-post")
     plt.ylim(0, 50)
     plt.xlim(xmin=0)
     plt.grid(linestyle=':')
-    plt.fill_between(t, 0, n, facecolor='b', alpha=0.25)
+    plt.fill_between(t, 0, n, step="post", facecolor='b', alpha=0.25)
     plt.xlabel(r'time [h]', fontsize=12)
     plt.ylabel(r'$\ N_{node} $', fontsize=12)
     plt.title(title, fontsize=14)
