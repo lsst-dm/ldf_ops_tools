@@ -91,14 +91,15 @@ def make_plot(title, data_file, name):
     n = np.asarray(n)       
 
     plt.figure(figsize=(8, 8))
-    plt.plot(t, n)
+    plt.plot(t, n, 'b', drawstyle="steps-post")
     plt.ylim(0, 50)
     plt.xlim(xmin=0)
     plt.grid(linestyle=':')
-    plt.fill_between(t, 0, n, facecolor='b', alpha=0.25)
-    plt.xlabel(r'time [h]', fontsize=12)
-    plt.ylabel(r'$\ N_{node} $', fontsize=12)
-    plt.title(title, fontsize=14)
+    plt.fill_between(t, 0, n, step="post", facecolor='b', alpha=0.25)
+    plt.xlabel(r'time [h]', fontsize=16)
+    plt.ylabel(r'$\ N_{node} $', fontsize=16)
+    plt.tick_params(axis='both', which='major', labelsize=14)
+    plt.title(title, fontsize=18)
     plt.savefig(name + ".png")
 
 if __name__== '__main__':
