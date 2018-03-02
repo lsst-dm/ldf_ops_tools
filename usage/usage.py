@@ -13,11 +13,6 @@ from subprocess import PIPE, Popen
 
 def create_parser():
     """Create command line parser.
-    
-    Returns
-    -------
-    p : 'argparse.ArgumentParser' object
-        Specifies command line options and stores command line data.
     """
     p = argparse.ArgumentParser()
     g = p.add_mutually_exclusive_group()
@@ -55,7 +50,7 @@ def gather_data(args):
     argv.append('--allocations')
 
     # Specify what data should be displayed.
-    fields = ['user', 'jobid', 'jobname', 'nnodes', 'submit', 'start', 'end']
+    fields = ['user', 'jobid', 'jobname', 'nnodes', 'submit', 'start', 'end', 'state']
     argv.append('--format={}'.format(','.join(fields)))
 
     # Specify either jobs or users for which the data will be gathered.
@@ -77,8 +72,41 @@ def gather_data(args):
     proc = Popen(argv, stdout=PIPE, stderr=PIPE, encoding='utf-8')
     stdout, stderr = proc.communicate()
     if stderr != '':
-        print(stderr)
-        raise OSError('failed to gather data.')
+        # This is to catch the jobs that have conflicting JOB_TERMINATED
+        # records, but only if the job ultimately completes correctly.
+        if "Conflicting JOB_TERMINATED record (COMPLETED)" in stderr:
+            err_num = []
+            # Finds jobIDs of possibly completed jobs in STDERR
+            for line in stderr.split("\n"):
+                if "Conflicting JOB_TERMINATED record (COMPLETED)" in line:
+                    err = [int(s) for s in line.split() if s.isdigit()]
+                    err_num += err
+            err_list = []
+            for i in range(len(err_num)):
+                if i % 2 == 0:
+                    err_list.append(str(err_num[i]))
+
+            # Creates the comma-separated list of jobs to re-test on SLURM
+            err_jobs = ",".join(err_list)
+
+            # Calls slurm again
+            argv_e = ['sacct']
+            argv_e.append('--format={}'.format(','.join(fields)))
+            argv_e.append('--jobs={}'.format(err_jobs))
+            argv_e.append('--state=CD,NF')
+            argv_e.extend(['--delimiter=,', '--noheader', '--parsable2'])
+            proc = Popen(argv_e, stdout=PIPE, stderr=PIPE, encoding='utf-8')
+            stdout_e, stderr_e = proc.communicate()
+
+            # If the STDOUT log of the resubmitted jobs show that they were
+            # completed, the job step log is added to the main list of
+            # completed jobs.
+            for line in stdout_e.split("\n"):
+                if "COMPLETED" in line:
+                    stdout += line + "\n"
+        else:
+            print(stderr)
+            raise OSError('failed to gather data.')
 
     lines = stdout.split('\n')[:-1]
     data = []
@@ -146,6 +174,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     data = gather_data(args)
     convert_times(data)
-    times, usage = get_usage(data)
+    times, usage = get_usage(data, res=400)
     for t, u in zip(times, usage):
         print(t, u)
