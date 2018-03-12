@@ -143,16 +143,20 @@ def get_usage(data, res=100):
     end_times = [(rec['end'] - begin).total_seconds() for rec in data]
 
     node_counts = [int(rec['nnodes']) for rec in data]
+    job_type = [rec['jobname'] for rec in data]
 
     # Make a histogram representing number of used nodes in a given time
     # interval.
     usage = [0] * res
-    for begin, end, nodes in zip(start_times, end_times, node_counts):
+    names = [''] * res
+    for begin, end, nodes, name in zip(start_times, end_times, node_counts, job_type):
         i, j = int(begin / step), int(end / step)
         for k in range(i, j):
             usage[k] += nodes
+            names[k] += name + ','
+    names = [s.rstrip(',') for s in names]
     times = [step * (i + 0.5) for i in range(len(usage))]
-    return times, usage
+    return times, usage, names
 
 
 def convert_times(data):
@@ -174,6 +178,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
     data = gather_data(args)
     convert_times(data)
-    times, usage = get_usage(data, res=400)
-    for t, u in zip(times, usage):
-        print(t, u)
+    times, usage, names = get_usage(data, res=400)
+    for t, u, n in zip(times, usage, names):
+        print(t, u, n)

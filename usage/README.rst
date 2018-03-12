@@ -52,14 +52,13 @@ or equivalently
 
 Plot data
 ^^^^^^^^^
-
-In the same directory where the data file usage.out resides, run the following in the command line:
+To plot the data collected in the previous step run
 
 .. code-block:: bash
 
-   python usageplot.py -t w_2018_03 -d usage.out -n usage_w_2018_03
+    python usageplot.py -d usage.out > nodehour.out
 
-The -t argument is the plot title (completely arbitrary), the -d argument is the name of the text file with the data (created above with usage.py) and the -n argument is the name of the .png file that will be made with usageplot.py (note that you should NOT include ".png" at the end of the -n argument!!).
+Besides making the plot, script will also return the total node-hours used by slurm on the jobs whose data is being plotted. We caught them in nodehour.out file.
 
 If you would like to know more about the arguments above, just run the following on the command line:
 
@@ -73,9 +72,24 @@ or alternately:
 
    python usageplot.py --help
 
-After you have run usageplot, you should see a new .png file in your current directory.  
-
 There are examples of data files and plots included in the examples subdirectory.  
+
+Advanced Plotting
+^^^^^^^^^^^^^^^^^
+In the same directory where the data file usage.out resides, run the following in the command line:
+
+.. code-block:: bash
+
+   python usageplot.py -t w_2018_03 -d usage.out -n usage_w_2018_03 -c > nodehour.out
+
+The -t argument is the plot title (completely arbitrary), the -d argument is the name of the text file with the data (created above with usage.py), the -n argument is the name of the .png file that will be made with usageplot.py (note that you should NOT include ".png" at the end of the -n argument!!), and the -c argument will specify if you would like the plots color-coded by the Slurm jobNames that you have assigned (this will only work if singleFrameDriver.py job names start with "Co" or "Wi", mosaic.py job names start with 'mo', coaddDriver.py job names start with 'co', and multibandDriver.py job names start with 'mt').  The 'nodehour.out' file will catch the total node-hours used by slurm on the jobs whose data is being plotted.
+
+If you would prefer to not have the plots color coded, then run the follwoing in the command line:
+
+.. code-block:: bash
+
+   python usageplot.py -t w_2018_03 -d usage.out -n usage_w_2018_03 > nodehour.out
+ 
 
 .. Links
 
