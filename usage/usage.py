@@ -13,6 +13,11 @@ from subprocess import PIPE, Popen
 
 def create_parser():
     """Create command line parser.
+
+    Returns
+    -------
+    `argparse.Namespace`
+        Namespace with commad line arguments.
     """
     p = argparse.ArgumentParser()
     g = p.add_mutually_exclusive_group()
@@ -128,9 +133,13 @@ def get_usage(data, res=100):
 
     Returns
     -------
-    t, u : `list` of numbers
-        Lists representing midpoints of time intervals and corresponding number
-        of nodes used either by given jobs or users in these intervals.
+    times : `list` of `float`
+        List representing midpoints of time intervals.
+    nodes : `list` of `int`
+        List of number of nodes used either by given jobs or users in the
+        corresponding time intervals.
+    names : `list` of `str`
+        List of group of tasks running in the corresponding time intervals.
     """
     begin = min(rec['start'] for rec in data)
     end = max(rec['end'] for rec in data)
