@@ -13,6 +13,11 @@ from subprocess import PIPE, Popen
 
 def create_parser():
     """Create command line parser.
+    
+    Returns
+    -------
+    `argparse.Namespace`
+        Namespace with commad line arguments.
     """
     p = argparse.ArgumentParser()
     g = p.add_mutually_exclusive_group()
@@ -46,11 +51,8 @@ def gather_data(args):
     # Set command name.
     argv = ['sacct']
 
-    # Show only cumulative statistics for each job (no steps).
-    argv.append('--allocations')
-
     # Specify what data should be displayed.
-    fields = ['user', 'jobid', 'jobname', 'nnodes', 'submit', 'start', 'end', 'state']
+    fields = ['jobid', 'jobname', 'nnodes', 'submit', 'start', 'end', 'state']
     argv.append('--format={}'.format(','.join(fields)))
 
     # Specify either jobs or users for which the data will be gathered.
@@ -62,8 +64,9 @@ def gather_data(args):
     else:
         argv.append('--jobs={}'.format(args.jobs))
 
-    # Include only completed jobs.
-    argv.append('--state=CD')
+    # Include completed jobs and those terminated due to node failures as they
+    # could be succesfully compeleted after being rescheduled.
+    argv.append('--state=CD,NF')
 
     # Output data in a format easy to parse (here: CSV).
     argv.extend(['--delimiter=,', '--noheader', '--parsable2'])
@@ -71,49 +74,39 @@ def gather_data(args):
     # Execute the command.
     proc = Popen(argv, stdout=PIPE, stderr=PIPE, encoding='utf-8')
     stdout, stderr = proc.communicate()
+
+    # Ignore warnings about conflicting records, but terminate execution in any
+    # other case.
     if stderr != '':
-        # This is to catch the jobs that have conflicting JOB_TERMINATED
-        # records, but only if the job ultimately completes correctly.
         if "Conflicting JOB_TERMINATED record (COMPLETED)" in stderr:
-            err_num = []
-            # Finds jobIDs of possibly completed jobs in STDERR
-            for line in stderr.split("\n"):
-                if "Conflicting JOB_TERMINATED record (COMPLETED)" in line:
-                    err = [int(s) for s in line.split() if s.isdigit()]
-                    err_num += err
-            err_list = []
-            for i in range(len(err_num)):
-                if i % 2 == 0:
-                    err_list.append(str(err_num[i]))
-
-            # Creates the comma-separated list of jobs to re-test on SLURM
-            err_jobs = ",".join(err_list)
-
-            # Calls slurm again
-            argv_e = ['sacct']
-            argv_e.append('--format={}'.format(','.join(fields)))
-            argv_e.append('--jobs={}'.format(err_jobs))
-            argv_e.append('--state=CD,NF')
-            argv_e.extend(['--delimiter=,', '--noheader', '--parsable2'])
-            proc = Popen(argv_e, stdout=PIPE, stderr=PIPE, encoding='utf-8')
-            stdout_e, stderr_e = proc.communicate()
-
-            # If the STDOUT log of the resubmitted jobs show that they were
-            # completed, the job step log is added to the main list of
-            # completed jobs.
-            for line in stdout_e.split("\n"):
-                if "COMPLETED" in line:
-                    stdout += line + "\n"
+            pass
         else:
             print(stderr)
             raise OSError('failed to gather data.')
 
-    lines = stdout.split('\n')[:-1]
-    data = []
+    # Collect accounting data for all jobs (even failed ones), but only for
+    # sucessfull steps.
+    jobs, steps = {}, {}
+    lines = stdout.splitlines()
     for line in lines:
         values = line.strip().split(',')
-        data.append({field: value for field, value in zip(fields, values)})
-    return data
+        rec = {field: value for field, value in zip(fields, values)}
+        tokens = rec['jobid'].split('.')
+        id_ = tokens[0]
+        if len(tokens) == 1:
+            jobs[id_] = rec
+        else:
+            if rec['state'] == 'COMPLETED':
+                steps[id_] = rec
+
+    # Update selected accounting data of failed jobs with those from
+    # corresponding succesfull steps.
+    fails = [id_ for id_, job in jobs.items() if job['state'] != 'COMPLETED']
+    for id_ in set(fails) & set(steps):
+        job = steps[id_]
+        patch = {key: job[key] for key in ['submit', 'start', 'end', 'state']}
+        jobs[id_].update(patch)
+    return list(job for job in jobs.values() if job['state'] == 'COMPLETED')
 
 
 def get_usage(data, res=100):
@@ -128,9 +121,13 @@ def get_usage(data, res=100):
 
     Returns
     -------
-    t, u : `list` of numbers
-        Lists representing midpoints of time intervals and corresponding number
-        of nodes used either by given jobs or users in these intervals.
+    times : `list` of `float`
+        List representing midpoints of time intervals.
+    nodes : `list` of `int`
+        List of number of nodes used either by given jobs or users in the
+        corresponding time intervals.
+    names : `list` of `str`
+        List of group of tasks running in the corresponding time intervals.    
     """
     begin = min(rec['start'] for rec in data)
     end = max(rec['end'] for rec in data)
