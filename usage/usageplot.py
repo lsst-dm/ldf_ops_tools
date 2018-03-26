@@ -1,5 +1,10 @@
-"""Create a plot of the lsst-dev node useage over time and prints the total
-node_hours of the jobs provided to usage.py.
+"""Create a plot of the lsst-dev node usage.
+
+Module creates the plot illustrating node usage of the lsst-dev cluster during
+an LSST campaign. It also prints campaign's short summary including:
+- the total number of node hours,
+- the elapsed time for each task (i.e. how much time it took to complete all
+coadd jobs, etc.)
 
 Code uses output from usage.py and needs to be assigned a plot title and a
 file name for the .png file to be made.
@@ -10,6 +15,11 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 import argparse
+from collections import Counter
+
+
+JOB_MAPPING = {'Wi': 'singleFrame', 'Co': 'singleFrame', 'mo': 'mosaic',
+               'co': 'coadd', 'mt': 'multiband'}
 
 
 def create_parser():
@@ -74,7 +84,7 @@ def get_args(args):
     return title, datafile, name, color
 
 
-def make_plot(title, times, nodes, name, jobs, color):
+def make_plot(title, times, nodes, name, color):
     """Makes a time vs. NNode plot named 'name'.png.
 
     Parameters
@@ -87,8 +97,6 @@ def make_plot(title, times, nodes, name, jobs, color):
         array of the node values from the data_file
     name : `str`
         name of the plot png file
-    jobs : `list` of `str`
-        list of the job names from SLURM at a given time step
     color : `bool`
         if the plot will be color-coded by job name
     """
@@ -106,15 +114,18 @@ def make_plot(title, times, nodes, name, jobs, color):
         for key in start_end.keys():
             for val_tup in start_end[key]:
                 plt.fill_between(times[val_tup[0]:val_tup[1]+2], 0,
-                                 nodes[val_tup[0]:val_tup[1]+2], hatch=hatch[key],
-                                 step="post", facecolor=colors[key], alpha=0.5,
+                                 nodes[val_tup[0]:val_tup[1]+2],
+                                 hatch=hatch[key], step="post",
+                                 facecolor=colors[key], alpha=0.5,
                                  label=key if key not in
-                                 plt.gca().get_legend_handles_labels()[1] else '')
+                                 plt.gca().get_legend_handles_labels()[1]
+                                 else '')
         plt.legend(title='Code Name')
 
     else:
         plt.plot(times, nodes, 'b', drawstyle="steps-post")
-        plt.fill_between(times, 0, nodes, step="post", facecolor='b', alpha=0.25)
+        plt.fill_between(times, 0, nodes, step="post", facecolor='b',
+                         alpha=0.25)
 
     plt.ylim(0, 50)
     plt.xlim(xmin=0)
@@ -152,21 +163,11 @@ def get_first_last(jobs):
     # Translates common entries in the names dictionary to the actual code
     # names. If the key in names doesn't match with any of those below, the
     # code will be marked as "unknown"
-
-    # Define the mapping between job codes and the actual names.
-    mapping = {
-        'Wi': 'singleFrame',
-        'Co': 'singleFrame',
-        'mo': 'mosaic',
-        'co': 'coadd',
-        'mt': 'multiband',
-        'un': 'unknown'
-     }
-
-    data_final = {k: set() for k in set(mapping.values())}
+    data_final = {k: set() for k in set(JOB_MAPPING.values())}
     for key, val in names.items():
-        name = mapping.get(key, 'unknown')
+        name = JOB_MAPPING.get(key, 'unknown')
         data_final[name].update(val)
+
     # Removes repeated index values for each key and sorts the values into
     # ascending order.
     data_final = {k: sorted(v) for k, v in data_final.items()}
@@ -241,11 +242,41 @@ def get_nodehours(times, nodes):
     return node_hours
 
 
+def get_elapsed(times, jobs):
+    """Finds the elapsed times for each code (ie, how much time it took to
+    complete all coadd jobs, etc.).
+
+    Parameters
+    ----------
+    times : Numpy array of `float`
+        time array from the data file in hours
+    jobs : `list` of `str`
+        list of the job names from SLURM at a given time step
+
+    Returns
+    -------
+    elapsed : `dict` of `str` keys and `int` values
+        dictionary containing the code names and their associated elapsed
+        running time on slurm
+    """
+    # Finds time between two data points
+    dt = times[1] - times[0]
+    # Dict that finds number of times a certain code is mentioned in jobs
+    abrev_jobs = Counter([word[:2] for lst in jobs for word in lst])
+    elapsed = {k: 0 for k in set(JOB_MAPPING.values())}
+    for key, val in abrev_jobs.items():
+        name = JOB_MAPPING.get(key, 'unknown')
+        elapsed[name] += val*dt
+    return elapsed
+
+
 if __name__ == '__main__':
     parse = create_parser()
     args = parse.parse_args()
     title, data_file, name, color = get_args(args)
     times, nodes, jobs = get_data(data_file)
-    make_plot(title, times, nodes, name, jobs, color)
+    make_plot(title, times, nodes, name, color)
+    elapsed = get_elapsed(times, jobs)
     node_hours = get_nodehours(times, nodes)
     print(node_hours)
+    print(elapsed)
