@@ -12,7 +12,6 @@ coadd jobs, etc.)
 """
 
 
-from collections import Counter
 import numpy as np
 import argparse
 import datetime
@@ -27,11 +26,11 @@ JOB_MAPPING = {'Wi': 'singleFrame', 'Co': 'singleFrame', 'mo': 'mosaic',
 
 
 def create_parser():
-    """Command line parser to pick up the command line arguments.
+    """Create command line parser.
 
     Returns
     -------
-    p : `argparse.ArgumentParser` object
+    p : `argparse.ArgumentParser`
         Specifies command line options and stores command line data.
     """
     p = argparse.ArgumentParser()
@@ -148,8 +147,8 @@ def get_usage(data, res=100):
 
     Returns
     -------
-    times : Numpy array of `float`
-        array of the time values from the data_file
+    times : np.array of `float`
+        Midpoints of time intervals
     jobs : `list` of `list` of `int`
         List of number of nodes used either by given jobs or users in the
         corresponding time intervals.
@@ -170,7 +169,7 @@ def get_usage(data, res=100):
     job_type = [rec['jobname'] for rec in data]
 
     # Make a histogram representing number of used nodes in a given time
-    # interval.
+    # interval
     usage = [0] * res
     names = [''] * res
     for begin, end, nodes, name in zip(start_times, end_times, node_counts, job_type):
@@ -198,7 +197,7 @@ def convert_times(data):
     Parameters
     ----------
     data : `list` of `dict`
-        Accounting data from slurm.
+        accounting data from slurm.
     """
     fmt = '%Y-%m-%dT%H:%M:%S'
     for datum in data:
@@ -365,30 +364,35 @@ def get_nodehours(times, nodes):
     return node_hours
 
 
-def get_elapsed(times, jobs):
+def get_elapsed(data):
     """Finds the elapsed times for each code (ie, how much time it took to
     complete all coadd jobs, etc.).
 
     Parameters
     ----------
-    times : Numpy array of `float`
-        time array from teh data file in hours
-    jobs : `list` of `str`
-        list of the job names from SLURM at a given time step
+    data : `list` of `dict`
+        accounting data from slurm.
+
     Returns
     -------
     elapsed : `dict` of `str` keys and `float` values
         dictionary containing the code names and their associated elapsed
         running time on SLURM in hours
     """
-    # Finds time between two data points
-    dt = times[1] - times[0]
-    # Dict that finds number of times a certain code is mentioned in jobs
-    abrev_jobs = Counter([word[:2] for lst in jobs for word in lst])
+    # Find duration of each job
+    duration = [(rec['end'] - rec['start']).total_seconds() for rec in data]
+
+    job_type = [rec['jobname'] for rec in data]
+
+    # Collect elapsed time data
+    elapsed_times = {}
+    for dur, name in zip(duration, job_type):
+        elapsed_times[name] = (dur)/3600.0
+
     elapsed = {k: 0 for k in set(JOB_MAPPING.values())}
-    for key, val in abrev_jobs.items():
-        name = JOB_MAPPING.get(key, 'unknown')
-        elapsed[name] += val*dt
+    for key, val in elapsed_times.items():
+        name = JOB_MAPPING.get(key[:2], 'unknown')
+        elapsed[name] += val
 
     return elapsed
 
@@ -403,5 +407,5 @@ if __name__ == '__main__':
     make_plot(title, times, nodes, name, jobs, color)
     node_hours = get_nodehours(times, nodes)
     print(node_hours)
-    elapsed = get_elapsed(times, jobs)
+    elapsed = get_elapsed(data)
     print(elapsed)
