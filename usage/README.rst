@@ -7,17 +7,16 @@ Overview
 Set of tools for gathering and illustrating **lsst-dev** node utilization:
 
 ``usage.py``
-    A script for gathering data by querying `SLURM`_ database on the cluster.
-    Created by Mikolaj Kowalik. 
-
-``usageplot.py``
-    A python code for plotting the data.
-    Created by Samantha Thrush.
+    A script for gathering data by querying `SLURM`_ database on the cluster
+    and then plotting the node-usage data while also returning the total
+    node-hours used and elapsed run times for each code.  
+    Original code by Mikolaj Kowalik. 
+    Modified by Samantha Thrush.
 
 Prerequisites
 -------------
 
-Data gathering script was tested with Python 3.6.4.
+This script was tested with Python 3.6.4.
 
 Installation
 ------------
@@ -28,15 +27,20 @@ choice.
 Tutorial
 --------
 
-Gather data
+Gather & plot data
 ^^^^^^^^^^^
 
-To gather information about cluster utilization by user **mxk** and save the
-results in file ``usage.out`` run:
+To gather information about cluster utilization by user **mxk** and then
+plot it, run the following code:
 
 .. code-block:: bash 
 
-   ./usage.py -u mxk > usage.out
+   ./usage.py -u mxk > nodehour_elapsed.out
+
+Besides making the usage.png plot, the script will also return the total
+node-hours used by SLURM on the jobs whose data is being plotted, as well as
+the  elapsed run time for each type of code (in hours). We caught them in the
+nodehour.out file.
 
 You can find out other supported command-line options by running:
 
@@ -50,46 +54,47 @@ or equivalently
 
    ./usage.py --help
 
-Plot data
-^^^^^^^^^
-To plot the data collected in the previous step run
-
-.. code-block:: bash
-
-    python usageplot.py -d usage.out > nodehour.out
-
-Besides making the plot, script will also return the total node-hours used by slurm on the jobs whose data is being plotted. We caught them in nodehour.out file.
-
-If you would like to know more about the arguments above, just run the following on the command line:
-
-.. code-block:: bash
-
-   python usageplot.py -h
-
-or alternately:
-
-.. code-block:: bash
-
-   python usageplot.py --help
-
 There are examples of data files and plots included in the examples subdirectory.  
 
 Advanced Plotting
 ^^^^^^^^^^^^^^^^^
-In the same directory where the data file usage.out resides, run the following in the command line:
+In the same directory where the data file usage.out resides, run the following
+in the command line:
 
 .. code-block:: bash
 
-   python usageplot.py -t w_2018_03 -d usage.out -n usage_w_2018_03 -c > nodehour.out
+   ./usage.py -u mxk -t 'mxk node usage' -n usage_mxk -c > nodehour_elapsed.out
 
-The -t argument is the plot title (completely arbitrary), the -d argument is the name of the text file with the data (created above with usage.py), the -n argument is the name of the .png file that will be made with usageplot.py (note that you should NOT include ".png" at the end of the -n argument!!), and the -c argument will specify if you would like the plots color-coded by the Slurm jobNames that you have assigned (this will only work if singleFrameDriver.py job names start with "Co" or "Wi", mosaic.py job names start with 'mo', coaddDriver.py job names start with 'co', and multibandDriver.py job names start with 'mt').  The 'nodehour.out' file will catch the total node-hours used by slurm on the jobs whose data is being plotted.
+This creates a plot illustrating **lsst-dev** cluster usage (in PNG format)
+based on data from the SLURM accounting database. It also outputs basic
+statistics (node-hour usage and elapsed runtimes for each code type) to
+standard output (caught here with nodehour_elapsed.out).  Below is an
+explanation of all of the possible options to use with usage.py.
 
-If you would prefer to not have the plots color coded, then run the follwoing in the command line:
+**-u** comma separated list enclosed in single quotes without spaces
+    (ex: -u 'mxk,thrush')
+    specifies user(s) to gather data for; conflicts with **-j**.
 
-.. code-block:: bash
+**-j** comma separated list enclosed in single quotes without spaces 
+    (ex: -j '108408,108425,108426')
+    specifies job id(s) to gather data for; conflicts with **-u**
 
-   python usageplot.py -t w_2018_03 -d usage.out -n usage_w_2018_03 > nodehour.out
- 
+**-t** string enclosed in single quotes
+    specifies the plot title (completely arbitrary)
+
+**-n** string
+    specifies name of the .png file that will be made
+    **DO NOT** include ".png" at the end of the string for this argument!
+
+**-c**
+    specifies if you would like the plots color-coded by the SLURM jobNames
+    that you have assigned (this will only work if singleFrameDriver.py
+    job names start with "Co" or "Wi", mosaic.py job names start with 'mo',
+    coaddDriver.py job names start with 'co', and multibandDriver.py job names
+    start with 'mt').
+
+    If you would prefer to not have the plots color-coded, then don't include the
+    '-c' option. 
 
 .. Links
 
