@@ -63,7 +63,7 @@ in the command line:
 
 .. code-block:: bash
 
-   ./usage.py -u mxk -t 'mxk node usage' -n usage_mxk -c > nodehour_elapsed.out
+   ./usage.py -u mxk -t 'mxk node usage' -n usage_mxk -c -m mapping.txt > nodehour_elapsed.out
 
 This creates a plot illustrating **lsst-dev** cluster usage (in PNG format)
 based on data from the SLURM accounting database. It also outputs basic
@@ -71,31 +71,54 @@ statistics (node-hour usage and elapsed runtimes for each code type) to
 standard output (caught here with nodehour_elapsed.out).  Below is an
 explanation of all of the possible options to use with usage.py.
 
-**-u** comma separated list enclosed in single quotes without spaces
-    (ex: -u 'mxk,thrush')
-    specifies user(s) to gather data for; conflicts with **-j**.
+**-u** list
 
-**-j** comma separated list enclosed in single quotes without spaces 
-    (ex: -j '108408,108425,108426')
-    specifies job id(s) to gather data for; conflicts with **-u**
+    specifies user(s) to gather data for (ex: -u 'mxk,thrush'); conflicts with
+    **-j**.
 
-**-t** string enclosed in single quotes
-    specifies the plot title (completely arbitrary)
+**-j** list 
 
-**-n** string
+    specifies job id(s) to gather data for(ex: -j '108408,108425,108426'); 
+    conflicts with **-u**
+
+**-t** string
+
+    specifies the plot title (completely arbitrary); enclose in quotes if
+    contains spaces
+
+**-n** filename
+
     specifies name of the .png file that will be made
+
     **DO NOT** include ".png" at the end of the string for this argument!
 
 **-c**
     specifies if you would like the plots color-coded by the SLURM jobNames
-    that you have assigned (this will only work if singleFrameDriver.py
-    job names start with "Co" or "Wi", mosaic.py job names start with 'mo',
-    coaddDriver.py job names start with 'co', and multibandDriver.py job names
-    start with 'mt').
+    that you have assigned.
 
     If you would prefer to not have the plots color-coded, then don't include the
     '-c' option. 
 
+**-m** textfile name
+    specifies the text file that will hold the python dictionary matching the
+    SLURM job name prefixes to the codes used.  The value for each key must be
+    one of the following: singleFrame, mosaic, coadd, multiband, and forc. For
+    example, if all of your SLURM jobs are from singleFrameDriver.py and the
+    jobnames start with "Wi" or "Co", then the text file should contain: 
+    {"Wi": "singleFrame", "Co": "singleFrame"}. The keys must be unique, are 
+    case dependent and must all have the same length. All keys and values must
+    be enclosed within double quotes, as is shown below. Do not include a key
+    called "un"; that is reserved for the "unknown" classification.
+
+    If **-m** is omitted, the following mapping will be used: 
+    {"Wi": "singleFrame", "un": "unknown", "Co": "singleFrame", 
+    "mo": "mosaic", "co": "coadd", "mt": "multiband"}. 
+
+    See the **examples** folder for an example of a mapping text file
+    called "mapping.txt" that was used for the S17B_ HSC PDR1 reprocessing
+    node useage plot.
+     
 .. Links
 
 .. _SLURM: https://slurm.schedmd.com/quickstart.html
+.. _S17B: https://confluence.lsstcorp.org/display/DM/S17B+HSC+PDR1+reprocessing

@@ -12,6 +12,7 @@ coadd jobs, etc.)
 """
 
 
+import json
 import numpy as np
 import argparse
 import datetime
@@ -21,8 +22,10 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
 
-JOB_MAPPING = {'Wi': 'singleFrame', 'Co': 'singleFrame', 'mo': 'mosaic',
-               'co': 'coadd', 'mt': 'multiband', 'un': 'unknown'}
+DEFAULT_JOB_MAPPING = {'Wi': 'singleFrame', 'Co': 'singleFrame',
+                       'mo': 'mosaic', 'co': 'coadd',
+                       'mt': 'multiband', 'un': 'unknown'}
+DEFAULT_KEY_LEN = 2
 
 
 def create_parser():
@@ -52,6 +55,10 @@ def create_parser():
                    help='Make the plot color-coded based on the jobnames '
                         'from slurm.  If omitted, the plot will show only '
                         'the overall node-usage without color-coding.')
+    p.add_argument('-m', '--mapping', type=str, default=None,
+                   help='File with mapping between SLURM job names and their '
+                        'codes in JSON format. See README.rst for more '
+                        'details.')
 
     return p
 
@@ -222,6 +229,10 @@ def get_args(args):
         Desired name of the plot png file.
     color : `bool`
         If the plot will be color-coded by job names.
+    key_len : `int`
+        Length of the keys in "mapping"
+    mapping : `dict`
+        Dictionary connecting jobnames to codes used
     """
     if args.title is None:
         title = ''
@@ -235,10 +246,20 @@ def get_args(args):
 
     color = args.color
 
-    return title, name, color
+    mapping = dict(DEFAULT_JOB_MAPPING)
+    key_len = DEFAULT_KEY_LEN
+    if args.mapping is not None:
+        with open(args.mapping, 'r') as f:
+            mapping = json.load(f)
+        if 'un' in mapping:
+            mapping.pop('un')
+        key_len = len(list(mapping.keys())[0])
+        mapping['un'] = 'unknown'
+
+    return title, name, color, key_len, mapping
 
 
-def make_plot(title, times, nodes, name, job_list, color):
+def make_plot(title, times, nodes, name, job_list, color, key_len, mapping):
     """Makes a time vs. NNode plot named 'name'.png.
 
     Parameters
@@ -255,17 +276,21 @@ def make_plot(title, times, nodes, name, job_list, color):
         list of the job names from SLURM at a given time step
     color : `bool`
         if the plot will be color-coded by job name
+    key_len : `int`
+        Length of the keys in "mapping"
+    mapping : `dict`
+        Dictionary connecting jobnames to codes used
     """
     plt.figure(figsize=(8, 8))
     plt.grid(linestyle=':')
 
     if color:
         plt.plot(times, nodes, 'k', alpha=0.25, drawstyle="steps-post")
-        start_end = get_first_last(job_list)
+        start_end = get_first_last(job_list, key_len, mapping)
         colors = {'singleFrame': 'c', 'mosaic': 'xkcd:yellow', 'coadd': 'g',
-                  'multiband': 'b', 'unknown': 'r'}
+                  'multiband': 'b', 'unknown': 'r', 'forc': 'xkcd:purple'}
         hatch = {'singleFrame': '///', 'mosaic': '\\\\', 'coadd': '...',
-                 'multiband': 'x', 'unknown': '**'}
+                 'multiband': 'x', 'unknown': '**', 'forc': 'oo'}
 
         for key in start_end.keys():
             for val_tup in start_end[key]:
@@ -293,7 +318,7 @@ def make_plot(title, times, nodes, name, job_list, color):
     plt.savefig(name + ".png")
 
 
-def get_first_last(jobs):
+def get_first_last(jobs, key_len, mapping):
     """Gets the first and the last index of the code names of the same type,
     (i.e.: will return the first and last index of the singleFrameDriver jobs)
     which will allow for color-coding in make-plot.
@@ -302,6 +327,11 @@ def get_first_last(jobs):
     ----------
     jobs : `list` of `lists`
         list of the job names from SLURM at a given time step
+    key_len : `int`
+        Length of the keys in "mapping"
+    mapping : `dict`
+        Dictionary connecting jobnames to codes used
+
 
      Returns
     -------
@@ -314,15 +344,15 @@ def get_first_last(jobs):
     names = dict()
     for idx, lst in enumerate(jobs):
         for job in lst:
-            names.setdefault(job[:2], set()).add(idx)
+            names.setdefault(job[:key_len], set()).add(idx)
 
     # Translates common entries in the names dictionary to the actual code
     # names. If the key in names doesn't match with any of those below, the
     # code will be marked as "unknown"
-    data_final = {k: set() for k in set(JOB_MAPPING.values())}
+    data_final = {k: set() for k in set(mapping.values())}
 
     for key, val in names.items():
-        name = JOB_MAPPING.get(key, 'unknown')
+        name = mapping.get(key, 'unknown')
         data_final[name].update(val)
 
     # Removes repeated index values for each key and sorts the values into
@@ -364,7 +394,7 @@ def get_nodehours(times, nodes):
     return node_hours
 
 
-def get_elapsed(data):
+def get_elapsed(data, key_len, mapping):
     """Finds the elapsed times for each code (ie, how much time it took to
     complete all coadd jobs, etc.).
 
@@ -372,6 +402,10 @@ def get_elapsed(data):
     ----------
     data : `list` of `dict`
         accounting data from slurm.
+    key_len : `int`
+        Length of the keys in "mapping"
+    mapping : `dict`
+        Dictionary connecting jobnames to codes used
 
     Returns
     -------
@@ -389,9 +423,9 @@ def get_elapsed(data):
     for dur, name in zip(duration, job_type):
         elapsed_times[name] = (dur)/3600.0
 
-    elapsed = {k: 0 for k in set(JOB_MAPPING.values())}
+    elapsed = {k: 0 for k in set(mapping.values())}
     for key, val in elapsed_times.items():
-        name = JOB_MAPPING.get(key[:2], 'unknown')
+        name = mapping.get(key[:key_len], 'unknown')
         elapsed[name] += val
 
     return elapsed
@@ -401,11 +435,11 @@ if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
     data = gather_data(args)
-    title, name, color = get_args(args)
+    title, name, color, key_len, mapping = get_args(args)
     convert_times(data)
     times, nodes, jobs = get_usage(data, res=800)
-    make_plot(title, times, nodes, name, jobs, color)
+    make_plot(title, times, nodes, name, jobs, color, key_len, mapping)
     node_hours = get_nodehours(times, nodes)
     print(node_hours)
-    elapsed = get_elapsed(data)
+    elapsed = get_elapsed(data, key_len, mapping)
     print(elapsed)
