@@ -372,16 +372,14 @@ def get_first_last(jobs, key_len, mapping):
     return start_end
 
 
-def get_nodehours(times, nodes):
-    """Takes the times and nodes arrays and outputs the node-hours used for
+def get_nodehours(data):
+    """Takes the accounting data from SLURM and outputs the node-hours used for
     all of the slurm jobs requested.
 
     Parameters
     ----------
-    times : Numpy array of `float`
-        time array from the data file in hours
-    nodes : Numpy array of `int`
-        array of node usage from the data file
+    data : `list` of `dict`
+        accounting data from slurm.
 
     Returns
     -------
@@ -389,9 +387,14 @@ def get_nodehours(times, nodes):
         the total node-hours spent on all of the slurm jobs passed into
         usage.py.
     """
-    dt = times[1] - times[0]
-    node_hours = np.sum(dt*nodes)
-    return node_hours
+    # Find duration of each job
+    duration = [(rec['end'] - rec['start']).total_seconds() for rec in data]
+    nodes = [int(rec['nnodes']) for rec in data]
+
+    # Collect elapsed time data
+    node_hours = sum(dur*node for dur, node in zip(duration, nodes))
+
+    return round(node_hours/3600.0, 2)
 
 
 def get_elapsed(data, key_len, mapping):
@@ -423,10 +426,15 @@ def get_elapsed(data, key_len, mapping):
     for dur, name in zip(duration, job_type):
         elapsed_times[name] = (dur)/3600.0
 
+    # First you add the numbers together
     elapsed = {k: 0 for k in set(mapping.values())}
     for key, val in elapsed_times.items():
         name = mapping.get(key[:key_len], 'unknown')
         elapsed[name] += val
+
+    # Then you find the significant figures
+    for key, val in elapsed.items():
+        elapsed[key] = round(val, 2)
 
     return elapsed
 
@@ -439,7 +447,7 @@ if __name__ == '__main__':
     convert_times(data)
     times, nodes, jobs = get_usage(data, res=800)
     make_plot(title, times, nodes, name, jobs, color, key_len, mapping)
-    node_hours = get_nodehours(times, nodes)
+    node_hours = get_nodehours(data)
     print(node_hours)
     elapsed = get_elapsed(data, key_len, mapping)
     print(elapsed)
