@@ -59,7 +59,10 @@ def create_parser():
                    help='File with mapping between SLURM job names and their '
                         'codes in JSON format. See README.rst for more '
                         'details.')
-
+    p.add_argument('-r', '--resolution', type=int, default=800,
+                   help='How many time bins the node utilization plot data '
+                        'will be sorted into.  If omitted, the resolution '
+                        'will be set to 800.')
     return p
 
 
@@ -233,6 +236,8 @@ def get_args(args):
         Length of the keys in "mapping"
     mapping : `dict`
         Dictionary connecting jobnames to codes used
+    resolution : `int`
+        Number of bins that the node usage will be sorted into
     """
     if args.title is None:
         title = ''
@@ -256,7 +261,9 @@ def get_args(args):
         key_len = len(list(mapping.keys())[0])
         mapping['un'] = 'unknown'
 
-    return title, name, color, key_len, mapping
+    resolution = args.resolution
+
+    return title, name, color, key_len, mapping, resolution
 
 
 def make_plot(title, times, nodes, name, job_list, color, key_len, mapping):
@@ -443,9 +450,9 @@ if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
     data = gather_data(args)
-    title, name, color, key_len, mapping = get_args(args)
+    title, name, color, key_len, mapping, resolution = get_args(args)
     convert_times(data)
-    times, nodes, jobs = get_usage(data, res=800)
+    times, nodes, jobs = get_usage(data, res=resolution)
     make_plot(title, times, nodes, name, jobs, color, key_len, mapping)
     node_hours = get_nodehours(data)
     print(node_hours)
