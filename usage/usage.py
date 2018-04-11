@@ -266,8 +266,8 @@ def get_args(args):
     return title, name, color, key_len, mapping, resolution
 
 
-def make_plot(title, times, nodes, name, job_list, color, key_len, mapping):
-    """Makes a time vs. NNode plot named 'name'.png.
+def make_plot(title, times, nodes, name, job_list, color):
+    """Plots the number of nodes vs. time.
 
     Parameters
     ----------
@@ -283,21 +283,19 @@ def make_plot(title, times, nodes, name, job_list, color, key_len, mapping):
         list of the job names from SLURM at a given time step
     color : `bool`
         if the plot will be color-coded by job name
-    key_len : `int`
-        Length of the keys in "mapping"
-    mapping : `dict`
-        Dictionary connecting jobnames to codes used
     """
     plt.figure(figsize=(8, 8))
     plt.grid(linestyle=':')
 
     if color:
         plt.plot(times, nodes, 'k', alpha=0.25, drawstyle="steps-post")
-        start_end = get_first_last(job_list, key_len, mapping)
+        start_end = get_first_last(job_list)
         colors = {'singleFrame': 'c', 'mosaic': 'xkcd:yellow', 'coadd': 'g',
-                  'multiband': 'b', 'unknown': 'r', 'forc': 'xkcd:purple'}
+                  'multiband': 'b', 'unknown': 'r', 'forc': 'xkcd:purple',
+                  'quick': 'xkcd:orange', 'skyCorrection': 'm'}
         hatch = {'singleFrame': '///', 'mosaic': '\\\\', 'coadd': '...',
-                 'multiband': 'x', 'unknown': '**', 'forc': 'oo'}
+                 'multiband': 'x', 'unknown': '**', 'forc': 'oo',
+                 'quick': '++', 'skyCorrection': '.*o'}
 
         for key in start_end.keys():
             for val_tup in start_end[key]:
@@ -325,7 +323,7 @@ def make_plot(title, times, nodes, name, job_list, color, key_len, mapping):
     plt.savefig(name + ".png")
 
 
-def get_first_last(jobs, key_len, mapping):
+def get_first_last(jobs):
     """Gets the first and the last index of the code names of the same type,
     (i.e.: will return the first and last index of the singleFrameDriver jobs)
     which will allow for color-coding in make-plot.
@@ -334,11 +332,6 @@ def get_first_last(jobs, key_len, mapping):
     ----------
     jobs : `list` of `lists`
         list of the job names from SLURM at a given time step
-    key_len : `int`
-        Length of the keys in "mapping"
-    mapping : `dict`
-        Dictionary connecting jobnames to codes used
-
 
      Returns
     -------
@@ -351,20 +344,11 @@ def get_first_last(jobs, key_len, mapping):
     names = dict()
     for idx, lst in enumerate(jobs):
         for job in lst:
-            names.setdefault(job[:key_len], set()).add(idx)
-
-    # Translates common entries in the names dictionary to the actual code
-    # names. If the key in names doesn't match with any of those below, the
-    # code will be marked as "unknown"
-    data_final = {k: set() for k in set(mapping.values())}
-
-    for key, val in names.items():
-        name = mapping.get(key, 'unknown')
-        data_final[name].update(val)
+            names.setdefault(job, set()).add(idx)
 
     # Removes repeated index values for each key and sorts the values into
     # ascending order.
-    data_final = {k: sorted(v) for k, v in data_final.items()}
+    data_final = {k: sorted(v) for k, v in names.items()}
 
     # Creates a dictionary only listing tuples of the first and last indexes of
     # when a code was run.  If there are gaps in the indexes, then there will
@@ -404,7 +388,7 @@ def get_nodehours(data):
     return round(node_hours/3600.0, 2)
 
 
-def get_elapsed(data, key_len, mapping):
+def get_elapsed(data):
     """Finds the elapsed times for each code (ie, how much time it took to
     complete all coadd jobs, etc.).
 
@@ -412,14 +396,10 @@ def get_elapsed(data, key_len, mapping):
     ----------
     data : `list` of `dict`
         accounting data from slurm.
-    key_len : `int`
-        Length of the keys in "mapping"
-    mapping : `dict`
-        Dictionary connecting jobnames to codes used
 
     Returns
     -------
-    elapsed : `dict` of `str` keys and `float` values
+    elapsed_times : `dict` of `str` keys and `float` values
         dictionary containing the code names and their associated elapsed
         running time on SLURM in hours
     """
@@ -428,22 +408,24 @@ def get_elapsed(data, key_len, mapping):
 
     job_type = [rec['jobname'] for rec in data]
 
-    # Collect elapsed time data
-    elapsed_times = {}
+    #return elapsed_times
+    elapsed_times = dict.fromkeys(job_type, 0.0)
     for dur, name in zip(duration, job_type):
-        elapsed_times[name] = (dur)/3600.0
+        elapsed_times[name] += dur
+    return {key: round(val/3600.0, 2) for key, val in elapsed_times.items()}
 
-    # First you add the numbers together
-    elapsed = {k: 0 for k in set(mapping.values())}
-    for key, val in elapsed_times.items():
-        name = mapping.get(key[:key_len], 'unknown')
-        elapsed[name] += val
 
-    # Then you find the significant figures
-    for key, val in elapsed.items():
-        elapsed[key] = round(val, 2)
+def convert_names(data, mapping, key_len):
+    """Convert names from JobNames to their code names.
 
-    return elapsed
+    Parameters
+    ----------
+    data : `list` of `dict`
+        accounting data from slurm.
+    """
+    for datum in data:
+        name = mapping.get(datum['jobname'][:key_len], 'unknown')
+        datum['jobname'] = name
 
 
 if __name__ == '__main__':
@@ -452,9 +434,10 @@ if __name__ == '__main__':
     data = gather_data(args)
     title, name, color, key_len, mapping, resolution = get_args(args)
     convert_times(data)
+    convert_names(data, mapping, key_len)
     times, nodes, jobs = get_usage(data, res=resolution)
-    make_plot(title, times, nodes, name, jobs, color, key_len, mapping)
+    make_plot(title, times, nodes, name, jobs, color)
     node_hours = get_nodehours(data)
     print(node_hours)
-    elapsed = get_elapsed(data, key_len, mapping)
+    elapsed = get_elapsed(data)
     print(elapsed)
