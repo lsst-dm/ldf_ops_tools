@@ -7,7 +7,7 @@ utilization, i.e. number of nodes used either by given users or jobs.
 It then creates the plot illustrating node usage of the lsst-dev cluster during
 an LSST campaign. It also prints campaign's short summary including:
 - the total number of node hours,
-- the elapsed time for each task (i.e. how much time it took to complete all
+- the node-hours for each task (i.e. how many node-hours it took to complete all
 coadd jobs, etc.)
 """
 
@@ -388,9 +388,9 @@ def get_nodehours(data):
     return round(node_hours/3600.0, 2)
 
 
-def get_elapsed(data):
-    """Finds the elapsed times for each code (ie, how much time it took to
-    complete all coadd jobs, etc.).
+def get_codehours(data):
+    """Finds the elapsed node-hours for each code (ie, how much time it took to
+    complete all coadd jobs multiplied by the nodes used, etc.).
 
     Parameters
     ----------
@@ -399,20 +399,20 @@ def get_elapsed(data):
 
     Returns
     -------
-    elapsed_times : `dict` of `str` keys and `float` values
-        dictionary containing the code names and their associated elapsed
-        running time on SLURM in hours
+    code_nodehours : `dict` of `str` keys and `float` values
+        dictionary containing the code names and their associated node-hours
+        on SLURM in hours*nodes
     """
-    # Find duration of each job
+    # Find duration of each job & nodes used
     duration = [(rec['end'] - rec['start']).total_seconds() for rec in data]
-
+    nodes = [int(rec['nnodes']) for rec in data]
     job_type = [rec['jobname'] for rec in data]
 
-    #return elapsed_times
-    elapsed_times = dict.fromkeys(job_type, 0.0)
-    for dur, name in zip(duration, job_type):
-        elapsed_times[name] += dur
-    return {key: round(val/3600.0, 2) for key, val in elapsed_times.items()}
+    # Return elapsed_times
+    code_nodehours = dict.fromkeys(job_type, 0.0)
+    for dur, name, node in zip(duration, job_type, nodes):
+        code_nodehours[name] += dur*node
+    return {key: round(val/3600.0, 2) for key, val in code_nodehours.items()}
 
 
 def convert_names(data, mapping, key_len):
@@ -439,5 +439,5 @@ if __name__ == '__main__':
     make_plot(title, times, nodes, name, jobs, color)
     node_hours = get_nodehours(data)
     print(node_hours)
-    elapsed = get_elapsed(data)
-    print(elapsed)
+    code_nodehours = get_codehours(data)
+    print(code_nodehours)
