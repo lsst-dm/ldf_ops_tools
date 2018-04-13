@@ -7,8 +7,8 @@ utilization, i.e. number of nodes used either by given users or jobs.
 It then creates the plot illustrating node usage of the lsst-dev cluster during
 an LSST campaign. It also prints campaign's short summary including:
 - the total number of node hours,
-- the node-hours for each task (i.e. how many node-hours it took to complete all
-coadd jobs, etc.)
+- the node-hours for each task (i.e. how many node-hours it took to complete
+all coadd jobs, etc.)
 """
 
 
@@ -44,6 +44,9 @@ def create_parser():
     g.add_argument('-j', '--jobs', type=str, default=None,
                    help='Comma separated list of jobs to consider. '
                         'If omitted, jobs of all users will be used.')
+    p.add_argument('-f', '--failed', type=str, default=None,
+                   help='Comma separated list of jobs that failed that '
+                        'still must be added.')
     p.add_argument('-t', '--title', type=str, default=None,
                    help='Desired title of the plot. '
                         'If omitted, there will be no title on the plot.')
@@ -92,17 +95,23 @@ def gather_data(args):
     argv.append('--format={}'.format(','.join(fields)))
 
     # Specify either jobs or users for which the data will be gathered.
+    failed = []
     if args.jobs is None:
         if args.users is None:
             argv.append('--allusers')
         else:
             argv.append('--user={}'.format(args.users))
     else:
-        argv.append('--jobs={}'.format(args.jobs))
+        jobs = args.jobs
+        if args.failed is not None:
+            jobs = ','.join([jobs, args.failed])
+            failed = args.failed.split(',')
+        argv.append('--jobs={}'.format(jobs))
 
-    # Include completed jobs and those terminated due to node failures as they
-    # could be succesfully compeleted after being rescheduled.
-    argv.append('--state=CD,NF')
+    # Include completed jobs, those terminated due to node failures as they
+    # could be succesfully compeleted after being rescheduled, and failed jobs
+    # that have been specifically included. 
+    argv.append('--state=CD,NF,F')
 
     # Output data in a format easy to parse (here: CSV).
     argv.extend(['--delimiter=,', '--noheader', '--parsable2'])
@@ -142,7 +151,7 @@ def gather_data(args):
         job = steps[id_]
         patch = {key: job[key] for key in ['submit', 'start', 'end', 'state']}
         jobs[id_].update(patch)
-    return list(job for job in jobs.values() if job['state'] == 'COMPLETED')
+    return list(job for job in jobs.values() if job['state'] == 'COMPLETED' or job['jobid'] in failed)
 
 
 def get_usage(data, res=100):
