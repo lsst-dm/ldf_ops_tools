@@ -9,7 +9,7 @@ Set of tools for gathering and illustrating **lsst-dev** node utilization:
 ``usage.py``
     A script for gathering data by querying `SLURM`_ database on the cluster
     and then plotting the node-usage data while also returning the total
-    node-hours used and elapsed run times for each code.  
+    node-hours used and the node-hours for each code.  
     Original code by Mikolaj Kowalik. 
     Modified by Samantha Thrush.
 
@@ -39,8 +39,7 @@ plot it, run the following code:
 
 Besides making the usage.png plot, the script will also return the total
 node-hours used by SLURM on the jobs whose data is being plotted, as well as
-the  elapsed run time for each type of code (in hours). We caught them in the
-nodehour.out file.
+the node-hours for each type of code. We caught them in the nodehour.out file.
 
 You can find out other supported command-line options by running:
 
@@ -54,7 +53,8 @@ or equivalently
 
    ./usage.py --help
 
-There are examples of data files and plots included in the examples subdirectory.  
+There are examples of mapping files and plots included in the **examples** 
+subdirectory.  There is also a script file that shows more usage cases.
 
 Advanced Plotting
 ^^^^^^^^^^^^^^^^^
@@ -63,7 +63,7 @@ in the command line:
 
 .. code-block:: bash
 
-   ./usage.py -u mxk -t 'mxk node usage' -n usage_mxk -c -m mapping.txt > nodehour_elapsed.out
+   ./usage.py -u mxk -f '125653,125654' -t 'mxk node usage' -n usage_mxk -c -m mapping.txt -r8000 > nodehour_elapsed.out
 
 This creates a plot illustrating **lsst-dev** cluster usage (in PNG format)
 based on data from the SLURM accounting database. It also outputs basic
@@ -72,22 +72,23 @@ standard output (caught here with nodehour_elapsed.out).  Below is an
 explanation of all of the possible options to use with usage.py.
 
 **-u** list
-
     specifies user(s) to gather data for (ex: -u 'mxk,thrush'); conflicts with
     **-j**.
 
 **-j** list 
-
     specifies job id(s) to gather data for(ex: -j '108408,108425,108426'); 
     conflicts with **-u**
 
-**-t** string
+**-f** list
+    specifies job id(s) that have failed that should still be included in the
+    plot(ex: -f '125653,125654').  Can be used with just **-j**. This argument
+    is only needed if there are failed jobs in the list of jobs to be plotted.
 
+**-t** string
     specifies the plot title (completely arbitrary); enclose in quotes if
     contains spaces
 
 **-n** filename
-
     specifies name of the .png file that will be made
 
     **DO NOT** include ".png" at the end of the string for this argument!
@@ -102,21 +103,29 @@ explanation of all of the possible options to use with usage.py.
 **-m** textfile name
     specifies the text file that will hold the python dictionary matching the
     SLURM job name prefixes to the codes used.  The value for each key must be
-    one of the following: singleFrame, mosaic, coadd, multiband, and forc. For
-    example, if all of your SLURM jobs are from singleFrameDriver.py and the
-    jobnames start with "Wi" or "Co", then the text file should contain: 
-    {"Wi": "singleFrame", "Co": "singleFrame"}. The keys must be unique, are 
-    case dependent and must all have the same length. All keys and values must
+    one of the following: **singleFrame, mosaic, coadd, multiband, quick, 
+    skyCorrection and forc**. For example, if all of your SLURM jobs are from
+    singleFrameDriver.py and the jobnames start with "Wi" or "Co", then the
+    text file should contain: {"Wi": "singleFrame", "Co": "singleFrame"}.
+    The keys must be unique and are case dependent. All keys and values must
     be enclosed within double quotes, as is shown below. Do not include a key
     called "un"; that is reserved for the "unknown" classification.
 
     If **-m** is omitted, the following mapping will be used: 
-    {"Wi": "singleFrame", "un": "unknown", "Co": "singleFrame", 
-    "mo": "mosaic", "co": "coadd", "mt": "multiband"}. 
 
-    See the **examples** folder for an example of a mapping text file
-    called "mapping.txt" that was used for the S17B_ HSC PDR1 reprocessing
-    node useage plot.
+    **{"Wi": "singleFrame", "un": "unknown", "Co": "singleFrame", 
+    "mo": "mosaic", "co": "coadd", "mt": "multiband"}.**
+
+    See the **examples** folder for two examples of a mapping text file: one
+    called "**mapping.txt**" that was used for the S17B_ HSC PDR1 reprocessing
+    node useage plot, and the other called "**mapping2.txt**" which is used for 
+    the example script usage_RC2.sh (also found in the **examples** folder).
+
+**-r** integer
+    specifies how many time bins the node utilization plot data will be sorted
+    into. 
+ 
+    If you do not include this option, the resolution will be set to 800.
      
 .. Links
 
