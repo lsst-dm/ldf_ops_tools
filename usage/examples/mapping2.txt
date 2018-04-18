@@ -1,0 +1,9 @@
+{
+    "sf": "singleFrame",
+    "mo": "mosaic",
+    "qu": "quick",
+    "co": "coadd",
+    "mt": "multiband",
+    "sk": "skyCorrection"
+}
+

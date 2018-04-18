@@ -12,6 +12,7 @@ all coadd jobs, etc.)
 """
 
 
+import re
 import json
 import numpy as np
 import argparse
@@ -25,7 +26,6 @@ import matplotlib.pyplot as plt
 DEFAULT_JOB_MAPPING = {'Wi': 'singleFrame', 'Co': 'singleFrame',
                        'mo': 'mosaic', 'co': 'coadd',
                        'mt': 'multiband', 'un': 'unknown'}
-DEFAULT_KEY_LEN = 2
 
 
 def create_parser():
@@ -110,7 +110,7 @@ def gather_data(args):
 
     # Include completed jobs, those terminated due to node failures as they
     # could be succesfully compeleted after being rescheduled, and failed jobs
-    # that have been specifically included. 
+    # that have been specifically included.
     argv.append('--state=CD,NF,F')
 
     # Output data in a format easy to parse (here: CSV).
@@ -241,8 +241,6 @@ def get_args(args):
         Desired name of the plot png file.
     color : `bool`
         If the plot will be color-coded by job names.
-    key_len : `int`
-        Length of the keys in "mapping"
     mapping : `dict`
         Dictionary connecting jobnames to codes used
     resolution : `int`
@@ -261,18 +259,16 @@ def get_args(args):
     color = args.color
 
     mapping = dict(DEFAULT_JOB_MAPPING)
-    key_len = DEFAULT_KEY_LEN
     if args.mapping is not None:
         with open(args.mapping, 'r') as f:
             mapping = json.load(f)
         if 'un' in mapping:
             mapping.pop('un')
-        key_len = len(list(mapping.keys())[0])
         mapping['un'] = 'unknown'
 
     resolution = args.resolution
 
-    return title, name, color, key_len, mapping, resolution
+    return title, name, color, mapping, resolution
 
 
 def make_plot(title, times, nodes, name, job_list, color):
@@ -424,26 +420,47 @@ def get_codehours(data):
     return {key: round(val/3600.0, 2) for key, val in code_nodehours.items()}
 
 
-def convert_names(data, mapping, key_len):
+def convert_names(data, mapping):
     """Convert names from JobNames to their code names.
 
     Parameters
     ----------
     data : `list` of `dict`
         accounting data from slurm.
+    mapping : `dict`
+        dictionary mapping jobName prefixes to code names
     """
+    # Extract mapping keys for matching
+    cores = mapping.keys()
     for datum in data:
-        name = mapping.get(datum['jobname'][:key_len], 'unknown')
-        datum['jobname'] = name
+        name = datum['jobname']
+
+        # See if name matches any keys
+        matches = [re.match(core, name) for core in cores]
+        matches = [match[0] for match in matches if match]
+
+        # Find new name or throw error if too many matches
+        if len(matches) == 0:
+            code = 'unknown'
+        elif len(matches) == 1:
+            code = mapping[matches[0]]
+        else:
+            msg = 'ERROR: Ambiguous mapping: ' \
+                  'following keys "%s" can be mapped to "%s".' % \
+                  (', '.join(match for match in matches), name)
+            raise RuntimeError(msg)
+
+        # Assign new code name
+        datum['jobname'] = code
 
 
 if __name__ == '__main__':
     parser = create_parser()
     args = parser.parse_args()
     data = gather_data(args)
-    title, name, color, key_len, mapping, resolution = get_args(args)
+    title, name, color, mapping, resolution = get_args(args)
     convert_times(data)
-    convert_names(data, mapping, key_len)
+    convert_names(data, mapping)
     times, nodes, jobs = get_usage(data, res=resolution)
     make_plot(title, times, nodes, name, jobs, color)
     node_hours = get_nodehours(data)
