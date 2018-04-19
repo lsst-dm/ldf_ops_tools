@@ -9,9 +9,24 @@ Set of tools for gathering and illustrating **lsst-dev** node utilization:
 ``usage.py``
     A script for gathering data by querying `SLURM`_ database on the cluster
     and then plotting the node-usage data while also returning the total
-    node-hours used and the node-hours for each code.  
-    Original code by Mikolaj Kowalik. 
-    Modified by Samantha Thrush.
+    node-hours used and the node-hours for each code. Uses functions from
+    ``data.py`` and ``output.py``. 
+
+``extract.py``
+    Function module that contains all functions for ``usage.py`` involving
+    collecting the slurm data and preparing the data for the functions in 
+    output.py and process.py.
+
+``process.py``
+    Function modules that contains all processing codes, such as those for
+    calculating the node usage histograms and node-hours.
+
+``output.py``
+    Function module that contains all functions for ``usage.py`` involving 
+    the plotting of the node utilization data.
+
+Original code by Mikolaj Kowalik. Modified by Samantha Thrush.
+
 
 Prerequisites
 -------------
@@ -21,8 +36,8 @@ This script was tested with Python 3.6.4.
 Installation
 ------------
 
-There is no installation process. Just put the scripts in directory of your
-choice.
+There is no installation process. Just put the script and function modules in
+the directory of your choice.
 
 Tutorial
 --------
@@ -63,11 +78,11 @@ in the command line:
 
 .. code-block:: bash
 
-   ./usage.py -u mxk -f '125653,125654' -t 'mxk node usage' -n usage_mxk -c -m mapping.txt -r8000 > nodehour_elapsed.out
+   ./usage.py -j '125653,125654,125522,125588,125590' -f '125653,125654' -t 'thrush node usage' -n usage_thrush -c -m mapping.txt -r 8000 > nodehour_elapsed.out
 
 This creates a plot illustrating **lsst-dev** cluster usage (in PNG format)
 based on data from the SLURM accounting database. It also outputs basic
-statistics (node-hour usage and elapsed runtimes for each code type) to
+statistics (total node-hour usage and node-hours for each code type) to
 standard output (caught here with nodehour_elapsed.out).  Below is an
 explanation of all of the possible options to use with usage.py.
 
